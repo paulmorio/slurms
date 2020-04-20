@@ -1,0 +1,51 @@
+#!/bin/bash
+#SBATCH -J dmtcp_serial
+#SBATCH -A ACCOUNT
+#SBATCH --output=dmtcp_serial_%A.out
+#SBATCH --error=dmtcp_serial_%A.err
+#SBATCH --nodes=1
+#SBATCH --ntasks=32
+#SBATCH --time=12:00:00
+#SBATCH -p skylake-himem
+#SBATCH --mail-type=begin
+#SBATCH --mail-type=end
+#SBATCH --mail-user="EMAIL"
+#! sbatch directives end here ################################
+
+#! Number of nodes and tasks per node allocated by SLURM (do not change):
+numnodes=$SLURM_JOB_NUM_NODES
+numtasks=$SLURM_NTASKS
+mpi_tasks_per_node=$(echo "$SLURM_TASKS_PER_NODE" | sed -e  's/^\([0-9][0-9]*\).*$/\1/')
+
+
+. /etc/profile.d/modules.sh
+module purge
+module load rhel7/default-peta4
+
+/path/to/python -m modulename.py
+/home/pms69/rds/hpc-work/geo2dr/venv/bin/python3 -m wl_mle_kernel.py
+
+#################################
+## No need to change ##
+#################################
+workdir="$SLURM_SUBMIT_DIR"
+cd $workdir
+echo -e "Changed directory to 'pwd'. \n"
+
+JOBID=$SLURM_JOB_ID
+echo -e "JobID: $JOBID\n======"
+echo "Time: `date`"
+echo "Running on master node: `hostname`"
+echo "Current directory: `pwd`"
+
+if [ "$SLURM_JOB_NODELIST" ]; then
+        #! Create a machine file:
+        export NODEFILE=`generate_pbs_nodefile`
+        cat $NODEFILE | uniq > machine.file.$JOBID
+        echo -e "\nNodes allocated:\n================"
+        echo `cat machine.file.$JOBID | sed -e 's/\..*$//g'`
+fi
+
+echo -e "\nnumtasks=$numtasks, numnodes=$numnodes, mpi_tasks_per_node=$mpi_tasks_per_node (OMP_NUM_THREADS=$OMP_NUM_THREADS)"
+
+
